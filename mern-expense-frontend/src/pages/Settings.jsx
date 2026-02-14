@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import API from "../utils/api";
 
 export default function Settings() {
   const [settings, setSettings] = useState({
@@ -8,31 +9,76 @@ export default function Settings() {
     notifications: true,
   });
 
-  const [showModal, setShowModal] = useState(null); // "profile", "password", "notifications", "language"
+  const [showModal, setShowModal] = useState(null);
   const [form, setForm] = useState({});
 
-  // Load saved settings from localStorage
+  // Fetch settings from backend
   useEffect(() => {
-    const saved = localStorage.getItem("userSettings");
-    if (saved) setSettings(JSON.parse(saved));
+    const fetchSettings = async () => {
+      try {
+        const res = await API.get("/settings");
+        if (res.data) setSettings(res.data);
+      } catch (err) {
+        console.error("Failed to fetch settings", err);
+      }
+    };
+    fetchSettings();
   }, []);
 
-  // Save settings to localStorage whenever updated
-  useEffect(() => {
-    localStorage.setItem("userSettings", JSON.stringify(settings));
-  }, [settings]);
+  const handleSave = async () => {
+    try {
+      let updatedSettings = { ...settings };
 
-  const handleSave = () => {
-    if (showModal === "profile") {
-      setSettings({ ...settings, name: form.name, email: form.email });
-    } else if (showModal === "password") {
-      alert("Password changed successfully ✅");
-    } else if (showModal === "notifications") {
-      setSettings({ ...settings, notifications: form.notifications });
-    } else if (showModal === "language") {
-      setSettings({ ...settings, language: form.language });
+      // PROFILE
+      if (showModal === "profile") {
+        updatedSettings.name = form.name;
+        updatedSettings.email = form.email;
+
+        await API.put("/settings", updatedSettings);
+        setSettings(updatedSettings);
+      }
+
+      // PASSWORD (FIXED ✅)
+      else if (showModal === "password") {
+        if (!form.currentPassword || !form.newPassword || !form.confirm) {
+          alert("All fields are required");
+          return;
+        }
+
+        if (form.newPassword !== form.confirm) {
+          alert("Passwords do not match");
+          return;
+        }
+
+        await API.put("/settings/password", {
+          currentPassword: form.currentPassword,
+          newPassword: form.newPassword,
+        });
+
+        alert("Password changed successfully ✅");
+      }
+
+      // NOTIFICATIONS
+      else if (showModal === "notifications") {
+        updatedSettings.notifications = form.notifications;
+
+        await API.put("/settings", updatedSettings);
+        setSettings(updatedSettings);
+      }
+
+      // LANGUAGE
+      else if (showModal === "language") {
+        updatedSettings.language = form.language;
+
+        await API.put("/settings", updatedSettings);
+        setSettings(updatedSettings);
+      }
+
+      setShowModal(null);
+      setForm({});
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to save settings ❌");
     }
-    setShowModal(null);
   };
 
   return (
@@ -41,6 +87,7 @@ export default function Settings() {
 
       <div className="bg-white rounded-xl p-6 shadow-soft max-w-3xl">
         <ul className="space-y-4">
+
           {/* Profile */}
           <li className="flex justify-between items-center">
             <div>
@@ -64,10 +111,15 @@ export default function Settings() {
           <li className="flex justify-between items-center">
             <div>
               <div className="font-medium">Password</div>
-              <div className="text-sm text-gray-500">Change your account password</div>
+              <div className="text-sm text-gray-500">
+                Change your account password
+              </div>
             </div>
             <button
-              onClick={() => setShowModal("password")}
+              onClick={() => {
+                setShowModal("password");
+                setForm({});
+              }}
               className="px-3 py-1.5 border rounded hover:bg-gray-50"
             >
               Edit
@@ -97,7 +149,9 @@ export default function Settings() {
           <li className="flex justify-between items-center">
             <div>
               <div className="font-medium">Language</div>
-              <div className="text-sm text-gray-500">{settings.language}</div>
+              <div className="text-sm text-gray-500">
+                {settings.language}
+              </div>
             </div>
             <button
               onClick={() => {
@@ -109,10 +163,11 @@ export default function Settings() {
               Edit
             </button>
           </li>
+
         </ul>
       </div>
 
-      {/* === Modal === */}
+      {/* MODAL */}
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-xl shadow-lg w-96 space-y-4">
@@ -123,62 +178,85 @@ export default function Settings() {
               {showModal === "language" && "Select Language"}
             </h2>
 
-            {/* Modal Content */}
+            {/* Profile */}
             {showModal === "profile" && (
               <>
                 <input
                   type="text"
                   placeholder="Full Name"
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="w-full p-2 border rounded focus:outline-primary"
+                  value={form.name || ""}
+                  onChange={(e) =>
+                    setForm({ ...form, name: e.target.value })
+                  }
+                  className="w-full p-2 border rounded"
                 />
                 <input
                   type="email"
                   placeholder="Email"
-                  value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  className="w-full p-2 border rounded focus:outline-primary"
+                  value={form.email || ""}
+                  onChange={(e) =>
+                    setForm({ ...form, email: e.target.value })
+                  }
+                  className="w-full p-2 border rounded"
                 />
               </>
             )}
 
+            {/* Password (FIXED ✅) */}
             {showModal === "password" && (
               <>
                 <input
                   type="password"
+                  placeholder="Current Password"
+                  onChange={(e) =>
+                    setForm({ ...form, currentPassword: e.target.value })
+                  }
+                  className="w-full p-2 border rounded"
+                />
+                <input
+                  type="password"
                   placeholder="New Password"
-                  onChange={(e) => setForm({ ...form, password: e.target.value })}
-                  className="w-full p-2 border rounded focus:outline-primary"
+                  onChange={(e) =>
+                    setForm({ ...form, newPassword: e.target.value })
+                  }
+                  className="w-full p-2 border rounded"
                 />
                 <input
                   type="password"
                   placeholder="Confirm Password"
-                  onChange={(e) => setForm({ ...form, confirm: e.target.value })}
-                  className="w-full p-2 border rounded focus:outline-primary"
+                  onChange={(e) =>
+                    setForm({ ...form, confirm: e.target.value })
+                  }
+                  className="w-full p-2 border rounded"
                 />
               </>
             )}
 
+            {/* Notifications */}
             {showModal === "notifications" && (
               <div className="flex items-center space-x-3">
                 <input
                   type="checkbox"
                   checked={form.notifications}
                   onChange={(e) =>
-                    setForm({ ...form, notifications: e.target.checked })
+                    setForm({
+                      ...form,
+                      notifications: e.target.checked,
+                    })
                   }
-                  className="w-4 h-4"
                 />
-                <label className="text-gray-700">Enable notifications</label>
+                <label>Enable notifications</label>
               </div>
             )}
 
+            {/* Language */}
             {showModal === "language" && (
               <select
                 value={form.language}
-                onChange={(e) => setForm({ ...form, language: e.target.value })}
-                className="w-full p-2 border rounded focus:outline-primary"
+                onChange={(e) =>
+                  setForm({ ...form, language: e.target.value })
+                }
+                className="w-full p-2 border rounded"
               >
                 <option>English</option>
                 <option>Hindi</option>
@@ -187,17 +265,17 @@ export default function Settings() {
               </select>
             )}
 
-            {/* Modal Actions */}
+            {/* Actions */}
             <div className="flex justify-end space-x-3 pt-3">
               <button
                 onClick={() => setShowModal(null)}
-                className="px-4 py-2 border rounded hover:bg-gray-100"
+                className="px-4 py-2 border rounded"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSave}
-                className="bg-primary text-white px-4 py-2 rounded hover:opacity-90"
+                className="bg-primary text-white px-4 py-2 rounded"
               >
                 Save
               </button>

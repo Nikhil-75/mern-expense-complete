@@ -18,16 +18,15 @@ const SidebarLink = ({ to, children }) => (
 
 export default function Layout() {
   const navigate = useNavigate();
-  const isLoggedIn = localStorage.getItem("fake_user");
+  const token = localStorage.getItem("token"); // ✅ backend token check
 
   const handleLogout = () => {
-    localStorage.removeItem("fake_user");
+    localStorage.removeItem("token"); // 🔥 remove backend token
     navigate("/login");
   };
 
   return (
     <div className="min-h-screen flex">
-      {/* Sidebar */}
       <aside className="w-64 bg-primary text-white p-6 hidden md:block rounded-tr-2xl rounded-br-2xl">
         <div className="mb-8">
           <div className="text-xl font-semibold">Expense Tracker</div>
@@ -40,20 +39,16 @@ export default function Layout() {
         </nav>
       </aside>
 
-      {/* Main Area */}
       <div className="flex-1">
         <header className="flex items-center justify-between p-4 md:p-6 bg-white shadow-soft">
           <div className="md:hidden">
-            <button
-              onClick={() => navigate("/dashboard")}
-              className="text-primary font-semibold"
-            >
+            <button onClick={() => navigate("/dashboard")} className="text-primary font-semibold">
               Expense Tracker
             </button>
           </div>
 
           <div className="ml-auto flex items-center gap-3">
-            {isLoggedIn ? (
+            {token ? (
               <button
                 onClick={handleLogout}
                 className="px-4 py-2 rounded-lg bg-white border text-primary hover:bg-gray-100"

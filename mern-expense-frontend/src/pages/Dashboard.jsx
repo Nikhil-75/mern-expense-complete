@@ -1,14 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { getExpenses } from "../services/expenseService";
 
 export default function Dashboard() {
-  const [list, setList] = useState(() => {
-    const user = localStorage.getItem("fake_user");
-    const saved = user ? localStorage.getItem(`expenses_${user}`) : null;
-
-    return saved ? JSON.parse(saved) : [];
-  });
-
+  const [list, setList] = useState([]);
   const [total, setTotal] = useState(0);
   const [data, setData] = useState([]);
 
@@ -29,31 +24,22 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-    calculateSummary(list);
-  }, []);
-
-  useEffect(() => {
-    const handleStorage = () => {
-      const user = localStorage.getItem("fake_user");
-      const updated = JSON.parse(localStorage.getItem(`expenses_${user}`)) || [];
-
-      setList(updated);
-      calculateSummary(updated);
+    const fetchData = async () => {
+      const res = await getExpenses(); // ✅ backend fetch
+      setList(res.data);
+      calculateSummary(res.data);
     };
-    window.addEventListener("storage", handleStorage);
-    return () => window.removeEventListener("storage", handleStorage);
+    fetchData();
   }, []);
 
   return (
     <div className="space-y-6">
       <div className="grid md:grid-cols-2 gap-6">
-        {/* Total Expense */}
         <div className="bg-white rounded-xl p-6 shadow-soft">
           <div className="text-sm text-gray-500">Total Expense</div>
           <div className="text-3xl font-semibold mt-2">₹{total.toLocaleString()}</div>
         </div>
 
-        {/* Expense by Category */}
         <div className="bg-white rounded-xl p-6 shadow-soft">
           <h3 className="font-semibold mb-4">Expenses by Category</h3>
           <div style={{ width: "100%", height: 150 }}>
@@ -69,7 +55,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Recent Transactions */}
       <div className="bg-white rounded-xl p-6 shadow-soft">
         <h2 className="text-2xl font-bold mb-4">Recent Transactions</h2>
         <div className="overflow-x-auto">
@@ -86,9 +71,10 @@ export default function Dashboard() {
               {[...list]
                 .sort((a, b) => new Date(b.date) - new Date(a.date))
                 .slice(0, 4)
-                .map((e, idx) => (
-                  <tr key={idx}>
-                    <td className="py-4">{e.date}</td>
+                //fix
+                .map((e) => (
+                  <tr key={e._id}>
+                    <td className="py-4">{new Date(e.date).toLocaleDateString()}</td> 
                     <td>{e.title}</td>
                     <td>{e.category}</td>
                     <td>₹{e.amount.toLocaleString()}</td>

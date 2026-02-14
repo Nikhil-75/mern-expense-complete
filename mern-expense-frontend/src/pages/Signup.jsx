@@ -1,17 +1,24 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { signupAPI } from "../services/authService";
+import { signupAPI } from "../services/authService"; // ✅ correct import
 
 export default function Signup() {
-  const [form, setForm] = useState({ name: "", email: "", password: "" });
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    password: "",
+  });
+
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
+
     try {
-      await signupAPI(form);
-      alert("Signup successful! Please login.");
+      const res = await signupAPI(form);
+      alert(res.data?.message || "Signup successful!");
       navigate("/login");
     } catch (err) {
       setError(err.response?.data?.message || "Signup failed!");
@@ -24,18 +31,24 @@ export default function Signup() {
         onSubmit={handleSubmit}
         className="bg-white rounded-xl p-8 shadow-lg w-full max-w-md"
       >
-        <h2 className="text-3xl font-bold text-center mb-6">Create Account</h2>
+        <h2 className="text-3xl font-bold text-center mb-6">
+          Create Account
+        </h2>
 
         {error && (
-          <div className="text-red-500 text-sm mb-3 text-center">{error}</div>
+          <div className="text-red-500 text-sm mb-3 text-center">
+            {error}
+          </div>
         )}
 
         <input
           type="text"
           placeholder="Full Name"
           value={form.name}
-          onChange={(e) => setForm({ ...form, name: e.target.value })}
-          className="w-full p-3 mb-4 rounded-lg border focus:outline-primary"
+          onChange={(e) =>
+            setForm({ ...form, name: e.target.value })
+          }
+          className="w-full p-3 mb-4 rounded-lg border"
           required
         />
 
@@ -43,8 +56,10 @@ export default function Signup() {
           type="email"
           placeholder="Email"
           value={form.email}
-          onChange={(e) => setForm({ ...form, email: e.target.value })}
-          className="w-full p-3 mb-4 rounded-lg border focus:outline-primary"
+          onChange={(e) =>
+            setForm({ ...form, email: e.target.value })
+          }
+          className="w-full p-3 mb-4 rounded-lg border"
           required
         />
 
@@ -52,14 +67,16 @@ export default function Signup() {
           type="password"
           placeholder="Password"
           value={form.password}
-          onChange={(e) => setForm({ ...form, password: e.target.value })}
-          className="w-full p-3 mb-6 rounded-lg border focus:outline-primary"
+          onChange={(e) =>
+            setForm({ ...form, password: e.target.value })
+          }
+          className="w-full p-3 mb-6 rounded-lg border"
           required
         />
 
         <button
           type="submit"
-          className="w-full bg-primary text-white p-3 rounded-lg hover:opacity-90 transition"
+          className="w-full bg-primary text-white p-3 rounded-lg"
         >
           Sign Up
         </button>

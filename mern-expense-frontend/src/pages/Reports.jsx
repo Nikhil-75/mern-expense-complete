@@ -163,47 +163,59 @@ import {
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
+import API from "../utils/api";
 
 const COLORS = ["#2f7ef6", "#22c55e", "#f97316", "#a78bfa"];
 
 export default function Reports() {
   const [expenses, setExpenses] = useState([]);
 
-  // ✅ Load reports based on logged-in user
-  // useEffect(() => {
-  //   const user = localStorage.getItem("fake_user");
-  //   const saved = user ? localStorage.getItem(`expenses_${user}`) : null;
-
-  //   setExpenses(saved ? JSON.parse(saved) : []);
-  // }, []);
-
+  // ✅ Fetch expenses from backend
   useEffect(() => {
-  const user = localStorage.getItem("fake_user");
-  const saved = localStorage.getItem(`expenses_${user}`);
-  setExpenses(saved ? JSON.parse(saved) : []);
-}, []);
+    const fetchExpenses = async () => {
+      try {
+        const res = await API.get("/expenses"); // backend API endpoint
+        setExpenses(res.data || []);
+      } catch (error) {
+        console.error("Failed to fetch expenses:", error);
+      }
+    };
+    fetchExpenses();
+  }, []);
 
-
-  // --- Line Chart Data (Monthly total) ---
+  // ✅ Monthly Expense Trend (Sorted)
   const lineData = (() => {
     const monthMap = {};
+
     expenses.forEach((e) => {
-      const month = new Date(e.date).toLocaleString("default", { month: "short" });
-      monthMap[month] = (monthMap[month] || 0) + e.amount;
+      const date = new Date(e.date);
+      const monthIndex = date.getMonth();
+      const monthName = date.toLocaleString("default", { month: "short" });
+
+      if (!monthMap[monthIndex]) {
+        monthMap[monthIndex] = { month: monthName, value: 0 };
+      }
+      monthMap[monthIndex].value += e.amount;
     });
-    return Object.entries(monthMap).map(([month, value]) => ({ month, value }));
+
+    return Object.keys(monthMap)
+      .sort((a, b) => a - b)
+      .map((key) => monthMap[key]);
   })();
 
-  // --- Pie Chart Data (Category total) ---
+  // ✅ Category Breakdown
   const pieData = (() => {
     const categoryMap = {};
     expenses.forEach((e) => {
       categoryMap[e.category] = (categoryMap[e.category] || 0) + e.amount;
     });
-    return Object.entries(categoryMap).map(([name, value]) => ({ name, value }));
+    return Object.entries(categoryMap).map(([name, value]) => ({
+      name,
+      value,
+    }));
   })();
 
-  // --- Excel Download Function ---
+  // ✅ Excel Download
   const downloadExcel = () => {
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.json_to_sheet(expenses);
@@ -211,16 +223,17 @@ export default function Reports() {
     XLSX.writeFile(wb, "Expense_Report.xlsx");
   };
 
-  // --- PDF Download Function ---
+  // ✅ PDF Download
   const downloadPDF = () => {
     const doc = new jsPDF();
     doc.text("Expense Report", 14, 15);
+
     const tableColumn = ["Date", "Title", "Category", "Amount"];
     const tableRows = expenses.map((e) => [
-      e.date,
+      new Date(e.date).toLocaleDateString(),
       e.title,
       e.category,
-      e.amount,
+      `₹ ${e.amount}`,
     ]);
 
     doc.autoTable(tableColumn, tableRows, { startY: 20 });
@@ -231,55 +244,81 @@ export default function Reports() {
     <div className="space-y-6">
       <h1 className="text-3xl font-bold">Reports</h1>
 
-      {/* --- Line Chart --- */}
-      <div className="bg-white p-6 rounded-xl shadow-soft">
-        <h2 className="text-xl font-semibold mb-4">Monthly Expense Trend</h2>
-        <div style={{ width: "100%", height: 250 }}>
-          <ResponsiveContainer>
-            <LineChart data={lineData}>
-              <XAxis dataKey="month" />
-              <YAxis />
-              <Tooltip />
-              <Line type="monotone" dataKey="value" stroke="#2f7ef6" strokeWidth={3} />
-            </LineChart>
-          </ResponsiveContainer>
+      {expenses.length === 0 && (
+        <div className="bg-white p-6 rounded-xl shadow-soft text-center text-gray-500">
+          No expense data available 📉
         </div>
-      </div>
+      )}
 
-      {/* --- Pie Chart --- */}
-      <div className="bg-white p-6 rounded-xl shadow-soft">
-        <h2 className="text-xl font-semibold mb-4">Category Breakdown</h2>
-        <div style={{ width: "100%", height: 250 }}>
-          <ResponsiveContainer>
-            <PieChart>
-              <Pie data={pieData} dataKey="value" nameKey="name" outerRadius={100}>
-                {pieData.map((_, i) => (
-                  <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip />
-              <Legend />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
+      {expenses.length > 0 && (
+        <>
+          {/* Line Chart */}
+          <div className="bg-white p-6 rounded-xl shadow-soft">
+            <h2 className="text-xl font-semibold mb-4">
+              Monthly Expense Trend
+            </h2>
+            <div style={{ width: "100%", height: 250 }}>
+              <ResponsiveContainer>
+                <LineChart data={lineData}>
+                  <XAxis dataKey="month" />
+                  <YAxis />
+                  <Tooltip />
+                  <Line
+                    type="monotone"
+                    dataKey="value"
+                    stroke="#2f7ef6"
+                    strokeWidth={3}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
 
-      {/* --- Buttons --- */}
-      <div className="flex gap-4">
-        <button
-          onClick={downloadExcel}
-          className="px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90"
-        >
-          Download Excel
-        </button>
+          {/* Pie Chart */}
+          <div className="bg-white p-6 rounded-xl shadow-soft">
+            <h2 className="text-xl font-semibold mb-4">
+              Category Breakdown
+            </h2>
+            <div style={{ width: "100%", height: 250 }}>
+              <ResponsiveContainer>
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    dataKey="value"
+                    nameKey="name"
+                    outerRadius={100}
+                  >
+                    {pieData.map((_, i) => (
+                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
 
-        <button
-          onClick={downloadPDF}
-          className="px-4 py-2 bg-red-500 text-white rounded-lg hover:opacity-90"
-        >
-          Download PDF
-        </button>
-      </div>
+          {/* Buttons */}
+          <div className="flex gap-4">
+            <button
+              onClick={downloadExcel}
+              className="px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90"
+            >
+              Download Excel
+            </button>
+
+            <button
+              onClick={downloadPDF}
+              className="px-4 py-2 bg-red-500 text-white rounded-lg hover:opacity-90"
+            >
+              Download PDF
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }
+
+
